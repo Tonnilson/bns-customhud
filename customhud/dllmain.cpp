@@ -13,6 +13,7 @@
 #include <wil/stl.h>
 #include <wil/win32_helpers.h>
 #include "detours.h"
+#include <regex>
 
 #include "UIElement.h"
 #include "functions.h"
@@ -42,7 +43,7 @@ const std::filesystem::path& documents_path()
 // Setup our vectors
 static std::vector<UIPanel*>UI_PANELS;
 static std::vector<int>LayerIds = {
-	24 // Premium Buff, Clan Bonus and premium food buffs ( This is not reliable but most of the time its this... )
+	//24 // Premium Buff, Clan Bonus and premium food buffs ( This is not reliable but most of the time its this... )
 };
 
 static std::vector<SCompoundWidget*> LayersTable;
@@ -82,6 +83,93 @@ static void loadFilter() {
 	stream.close(); // Something I forgot to do with fpsbooster was close the file stream
 	return;
 }
+
+// I should replace this with a directinput hook to read the key states of the game
+// But I have other projects already hooking it and I don't want to conflict with potential future plugins that will make better use
+/*
+static void HotKeyMonitor() {
+	static bool ToggleUiHotkey;
+	static bool reloadFilterList;
+	static bool TestKey;
+	static bool NamePlates;
+	while (true) {
+		if (IS_KEY_DOWN(VK_MENU)) {
+			ToggleUiHotkey = IS_KEY_DOWN(0x58); // X
+			reloadFilterList = IS_KEY_DOWN(VK_INSERT);
+			TestKey = IS_KEY_DOWN(0x5A); // Z
+			NamePlates = IS_KEY_DOWN(0x42); // B
+			//testKey = false;
+			if(reloadFilterList) {
+				if (std::filesystem::exists(FilterPath))
+					loadFilter();
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Delay by 1s to prevent excessive execution
+			}
+			else if (ToggleUiHotkey) {
+				if (UiStateGamePtr != NULL) {
+					Hide_UI_Panels = !Hide_UI_Panels;
+					for (auto panel : UI_PANELS) {
+						if (panel == NULL) continue; // ptr null skip
+						if (panel->panelName == NULL) continue; // name is null but ptr could be fine
+
+						const wchar_t* name = panel->panelName;
+						auto result = std::any_of(PANEL_NAMES.begin(), PANEL_NAMES.end(), [name](std::wstring elem) {
+							return wcscmp(elem.c_str(), name) == 0;
+						});
+
+						if (!result) continue;
+						//bool isPanelVisible = (unsigned __int8)oUIPanelIsVisible(panel, false) == 1;
+						// Toggle can work but it's weird
+						oUIPanelToggle(panel, true);
+						// Can also use UiStateGame::ShowPanel to show or hide a panel but need to know the ptr for the uistategame obj and pass it
+						//oUiStateGameShowPanel(UiStateGamePtr, panel, !Hide_UI_Panels, true, true);
+					}
+
+					// Rehides the Depth of field filter if it's not hidden
+					if (LayersTable[DepthOfFieldIndex]->IsVisible != 0)
+						LayersTable[DepthOfFieldIndex]->IsVisible = 0;
+
+					// I don't recommend this
+					if (!LayerIds.empty()) {
+						for (auto layer : LayerIds) {
+							if (layer > LayersTable.size() - 1) continue;
+							LayersTable[layer]->IsVisible = (LayersTable[layer]->IsVisible == 0) ? 17 : 0; // 0 = don't show | val > 0 < 17 = show but no interaction | val >= 17 = show with interaction enabled
+							// We also set the alpha level to 0 if needed
+							// Why? Widgets that are always being updated won't let you change the IsVisible or Opacity property so instead we go for Alpha channel of the ColorDrawArgs
+							// Could probably do this better and call internal functions to make a widget visible or not but too lazy to go through all of that.
+							LayersTable[layer]->AlphaLevel = (LayersTable[layer]->AlphaLevel == 0.0f) ? 1.0f : 0.0f;
+						}
+					}
+				}
+				std::this_thread::sleep_for(std::chrono::milliseconds(250));
+			}
+			else if (TestKey) {
+				/*
+				std::cout << "Vector Size: " << LayersTable.size() << std::endl;
+				for (auto x : LayersTable) {
+					SCompoundWidget* layer = reinterpret_cast<SCompoundWidget*>(x);
+					printf("Layer: %p\n", layer);
+				}
+				std::this_thread::sleep_for(std::chrono::milliseconds(250));
+				
+			}
+			else if (NamePlates) {
+				if (*BNSClientInstance) {
+					if(!BNSInstance)
+						BNSInstance = *(BInstance**)BNSClientInstance;
+
+					// Make sure the pointer is valid
+					if (*BNSInstance->PresentationWorld) {
+						oSetEnableNamePlate(BNSInstance->PresentationWorld, !SHOW_NAMEPLATES);
+						SHOW_NAMEPLATES = !SHOW_NAMEPLATES;
+						std::this_thread::sleep_for(std::chrono::milliseconds(250)); // Delay
+					}
+				}
+			}
+		}
+	}
+}
+*/
 
 bool ToggleUiPressed = false;
 bool ToggleNamePlates = false;
@@ -127,10 +215,23 @@ bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 						if (LayersTable[DepthOfFieldIndex]->IsVisible != 0)
 							LayersTable[DepthOfFieldIndex]->IsVisible = 0;
 
+						// I am not 100% sure exactly what these are, they're not what I initially thought they were but they are called via Ctrl + X
+						// I have observed no negatives to hiding them.
+						if (*BNSClientInstance) {
+							if (!BNSInstance)
+								BNSInstance = *(BInstance**)BNSClientInstance;
+
+							// Make sure the pointer is valid
+							if (*BNSInstance->PresentationWorld) {
+								oSetEnableIndicator(BNSInstance->PresentationWorld, !Hide_UI_Panels);
+								oSetEnableBalloon(BNSInstance->PresentationWorld, !Hide_UI_Panels);
+							}
+						}
+
 						// I don't recommend this
 						if (!LayerIds.empty()) {
 							for (auto layer : LayerIds) {
-								if (layer > LayersTable.size() - 1) continue;
+								if (layer > LayersTable.size() - 1) continue; // index is out of range so ignore
 								LayersTable[layer]->IsVisible = (LayersTable[layer]->IsVisible == 0) ? 17 : 0; // 0 = don't show | val > 0 < 17 = show but no interaction | val >= 17 = show with interaction enabled
 								// We also set the alpha level to 0 if needed
 								// Why? Widgets that are always being updated won't let you change the IsVisible or Opacity property so instead we go for Alpha channel of the ColorDrawArgs
@@ -171,7 +272,9 @@ bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 bool _fastcall hkUiStateGame(__int64 thisptr) {
 	if (thisptr) {
 		UiStateGamePtr = thisptr;
+		// Reset some internal stuff on each new load
 		Hide_UI_Panels = false;
+		SHOW_NAMEPLATES = true;
 		// This is for SCompoundWidget::OnPaint
 		UiStateInit = true;
 		TargetedLayer = NULL;
@@ -242,6 +345,12 @@ bool __fastcall hkSCompoundWidgetOnPaint(SCompoundWidget* thisptr, __int64 Args,
 	return oSCompoundWidgetOnPaint(thisptr, Args, AllotedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 }
 
+bool __fastcall hkformatTextVariadicArguments_2(std::wstring* output, const wchar_t* formatAlias, ...) {
+	va_list va;
+	va_start(va, formatAlias);
+	return (unsigned __int8)oFormatTextArgumentList_2(output, formatAlias, va);
+}
+
 void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 {
 	if (const auto module = pe::get_module()) {
@@ -268,6 +377,28 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 			oBInputKey = module->rva_to<std::remove_pointer_t<decltype(oBInputKey)>>(aBinput - handle);
 			DetourAttach(&(PVOID&)oBInputKey, &hkBInputKey);
 		}
+
+		// Stops invokeGameMessage for combat log
+		// Same as with FPSBooster, we stop this function from running as it does the lookup process and everything else before checking if combat log printing was disabled where as it should be done after
+		// Unclear whether or not this provides an FPS bonus like it did with the UE3 client but still including it because who really uses the combat log.
+		auto sMHandler = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("49 89 43 C0 4D 89 4B B8 4D 8B C8 41 B8 08 00 00 00")));
+		if (sMHandler != data.end()) {
+			uintptr_t aHandler = (uintptr_t)&sMHandler[0] - 0x4B;
+			BYTE ret[] = { 0xC3, 0x90, 0x90 };
+			DWORD oldprotect;
+			VirtualProtect((LPVOID)aHandler, sizeof(ret), PAGE_EXECUTE_READWRITE, &oldprotect);
+			memcpy((LPVOID)aHandler, ret, sizeof(ret));
+			VirtualProtect((LPVOID)aHandler, sizeof(ret), oldprotect, &oldprotect);
+		}
+
+		/*
+		auto sFormatText_1 = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("48 81 C4 88 00 00 00 C3 CC CC CC CC CC CC CC CC CC CC CC CC 48 89 54 24 10 48 89 4C 24 08")));
+		if (sFormatText_1 != data.end()) {
+			oFormatTextArgumentList_2 = module->rva_to<std::remove_pointer_t<decltype(oFormatTextArgumentList_2)>>(GetAddress(((uintptr_t)&sFormatText_1[0] + 0x45), 1, 5) - handle);
+			oformatTextVariadicArguments_2 = module->rva_to<std::remove_pointer_t<decltype(oformatTextVariadicArguments_2)>>(((uintptr_t)&sFormatText_1[0] + 0x14) - handle);
+			DetourAttach(&(PVOID&)oformatTextVariadicArguments_2, &hkformatTextVariadicArguments_2);
+		}
+		*/
 
 		auto sSCompoundOnPaint = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("F3 0F 10 4C 24 4C F3 0F 59 8F 34 03 00 00 F3 0F 11 4C 24 4C")));
 		if (sSCompoundOnPaint != data.end()) {
@@ -314,9 +445,18 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 			BNSClientInstance = (uintptr_t*)GetAddress((uintptr_t)&sBShowHud[0] + 0x5A, 3, 7);
 		}
 
-		auto sSetNamePlate = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("48 89 5C 24 30 48 89 7C 24 38 88 91 A0 00 00 00")));
+		// 48 89 5C 24 30 48 89 7C 24 38 88 91 A0 00 00 00 - 0x1C (SetEnableNamePlate)
+		// 48 85 D2 0F B6 D3 48 0F 44 CD E8 (End of BUiWorld::ShowHud)
+		auto sSetNamePlate = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("48 85 D2 0F B6 D3 48 0F 44 CD E8")));
 		if (sSetNamePlate != data.end()) {
-			oSetEnableNamePlate = module->rva_to<std::remove_pointer_t<decltype(oSetEnableNamePlate)>>(((uintptr_t)&sSetNamePlate[0] - 0x1C) - handle);
+			// Get the full address of the functions from their relative calls
+			uintptr_t aSetNamePlate = GetAddress((uintptr_t)&sSetNamePlate[0] - 0x66, 1, 5);
+			uintptr_t aSetBalloon = GetAddress((uintptr_t)&sSetNamePlate[0] - 0x86, 1, 5);
+			uintptr_t aSetIndicator = GetAddress((uintptr_t)&sSetNamePlate[0] - 0x46, 1, 5);
+			
+			oSetEnableNamePlate = module->rva_to<std::remove_pointer_t<decltype(oSetEnableNamePlate)>>(aSetNamePlate - handle);
+			oSetEnableBalloon = module->rva_to<std::remove_pointer_t<decltype(oSetEnableBalloon)>>(aSetBalloon - handle);
+			oSetEnableIndicator = module->rva_to<std::remove_pointer_t<decltype(oSetEnableIndicator)>>(aSetIndicator - handle);
 		}
 
 		DetourTransactionCommit();

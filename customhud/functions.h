@@ -52,6 +52,8 @@ _UiPanelToggle oUIPanelToggle;
 
 typedef void(__cdecl* _PresentationWorldSetNamePlate)(uintptr_t *pWorld, bool enable);
 _PresentationWorldSetNamePlate oSetEnableNamePlate;
+_PresentationWorldSetNamePlate oSetEnableIndicator;
+_PresentationWorldSetNamePlate oSetEnableBalloon;
 
 /*
 /// <summary>
