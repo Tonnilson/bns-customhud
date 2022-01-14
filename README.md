@@ -20,7 +20,7 @@ It's not recommended to use this
 
 This is a way for users to customize which UI elements are hidden from the screen.
 ###### List of known Panel Names / Layer indexes
-I can't stress this enough but don't use layer indexes (integers) this are extremely unreliable due to how I determine them.
+I can't stress this enough but don't use layer indexes (integers) this are extremely unreliable due to how I determine them and by that I mean I am collecting a list of layers, sorting by their layerId and going off that. LayerID's change when layers are added or removed so loading into a new level (map) may have additional layers created before-hand
 ```
 PlayerExpBarPanel
 SprintPanel
