@@ -40,30 +40,52 @@ EnergyPanel
 # This method is not recommended as it's based off indexing which is sorted by layerId both of which change dynamically
 # Layers start from 0-82 ( DO NOT USE low indexes, start from 20+)
 # These are just a relative position on the table list, again note that these change each time you load into a new level and may shift up or down by a few
-15: Name
-17: XP Bar
-18: System Menu Icons
-19: Notification Icons
-22: Chat
-24: Top Left Icons
-26: Quest Bar
-27: Map
-28: Z|X|C|V
-29: 1|2|3|4
-30: LMB
-31: RMB
-32: Hotkey items
-33: Talisman
-34: Buff Gauge
-35: Tab
-36: SS
-37: E
-39: Auto Combat Icon
-40: Ultimate Gauge
-41: Ping
-42: FPS
-49: HP Bar
-56 | 57: Depth
+#HMLVL Name
+15
+#XP Bar
+17
+#System Menu Icons
+18
+#Notification Icons
+19
+#Chat
+22
+#Premium buff icons (top left on default ui)
+24
+#Quest bar
+26
+#Map
+27
+#Context menu Z|X|C|V
+28
+#Context Menu 1|2|3|4
+29
+#LMB Context Icon
+30
+#RMB Context Icon
+31
+#Hotkey icons (5|6|7|8 on default keylist)
+32
+#Talisman icon
+33
+#Buff gauge
+34
+#Tab context icon
+35
+#Backstep context icon
+36
+#E Context icon
+37
+#Auto Combat icon
+39
+#Ultimate Gauge
+40
+#Ping
+41
+#Fps but why? you can turn this off yourself in settings
+42
+#HP / Chi Bar
+49
 ```
 
 # FAQ
