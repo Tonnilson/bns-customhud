@@ -13,7 +13,6 @@
 #include <wil/stl.h>
 #include <wil/win32_helpers.h>
 #include "detours.h"
-#include <regex>
 
 #include "UIElement.h"
 #include "functions.h"
@@ -83,93 +82,6 @@ static void loadFilter() {
 	stream.close(); // Something I forgot to do with fpsbooster was close the file stream
 	return;
 }
-
-// I should replace this with a directinput hook to read the key states of the game
-// But I have other projects already hooking it and I don't want to conflict with potential future plugins that will make better use
-/*
-static void HotKeyMonitor() {
-	static bool ToggleUiHotkey;
-	static bool reloadFilterList;
-	static bool TestKey;
-	static bool NamePlates;
-	while (true) {
-		if (IS_KEY_DOWN(VK_MENU)) {
-			ToggleUiHotkey = IS_KEY_DOWN(0x58); // X
-			reloadFilterList = IS_KEY_DOWN(VK_INSERT);
-			TestKey = IS_KEY_DOWN(0x5A); // Z
-			NamePlates = IS_KEY_DOWN(0x42); // B
-			//testKey = false;
-			if(reloadFilterList) {
-				if (std::filesystem::exists(FilterPath))
-					loadFilter();
-
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Delay by 1s to prevent excessive execution
-			}
-			else if (ToggleUiHotkey) {
-				if (UiStateGamePtr != NULL) {
-					Hide_UI_Panels = !Hide_UI_Panels;
-					for (auto panel : UI_PANELS) {
-						if (panel == NULL) continue; // ptr null skip
-						if (panel->panelName == NULL) continue; // name is null but ptr could be fine
-
-						const wchar_t* name = panel->panelName;
-						auto result = std::any_of(PANEL_NAMES.begin(), PANEL_NAMES.end(), [name](std::wstring elem) {
-							return wcscmp(elem.c_str(), name) == 0;
-						});
-
-						if (!result) continue;
-						//bool isPanelVisible = (unsigned __int8)oUIPanelIsVisible(panel, false) == 1;
-						// Toggle can work but it's weird
-						oUIPanelToggle(panel, true);
-						// Can also use UiStateGame::ShowPanel to show or hide a panel but need to know the ptr for the uistategame obj and pass it
-						//oUiStateGameShowPanel(UiStateGamePtr, panel, !Hide_UI_Panels, true, true);
-					}
-
-					// Rehides the Depth of field filter if it's not hidden
-					if (LayersTable[DepthOfFieldIndex]->IsVisible != 0)
-						LayersTable[DepthOfFieldIndex]->IsVisible = 0;
-
-					// I don't recommend this
-					if (!LayerIds.empty()) {
-						for (auto layer : LayerIds) {
-							if (layer > LayersTable.size() - 1) continue;
-							LayersTable[layer]->IsVisible = (LayersTable[layer]->IsVisible == 0) ? 17 : 0; // 0 = don't show | val > 0 < 17 = show but no interaction | val >= 17 = show with interaction enabled
-							// We also set the alpha level to 0 if needed
-							// Why? Widgets that are always being updated won't let you change the IsVisible or Opacity property so instead we go for Alpha channel of the ColorDrawArgs
-							// Could probably do this better and call internal functions to make a widget visible or not but too lazy to go through all of that.
-							LayersTable[layer]->AlphaLevel = (LayersTable[layer]->AlphaLevel == 0.0f) ? 1.0f : 0.0f;
-						}
-					}
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(250));
-			}
-			else if (TestKey) {
-				/*
-				std::cout << "Vector Size: " << LayersTable.size() << std::endl;
-				for (auto x : LayersTable) {
-					SCompoundWidget* layer = reinterpret_cast<SCompoundWidget*>(x);
-					printf("Layer: %p\n", layer);
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(250));
-				
-			}
-			else if (NamePlates) {
-				if (*BNSClientInstance) {
-					if(!BNSInstance)
-						BNSInstance = *(BInstance**)BNSClientInstance;
-
-					// Make sure the pointer is valid
-					if (*BNSInstance->PresentationWorld) {
-						oSetEnableNamePlate(BNSInstance->PresentationWorld, !SHOW_NAMEPLATES);
-						SHOW_NAMEPLATES = !SHOW_NAMEPLATES;
-						std::this_thread::sleep_for(std::chrono::milliseconds(250)); // Delay
-					}
-				}
-			}
-		}
-	}
-}
-*/
 
 bool ToggleUiPressed = false;
 bool ToggleNamePlates = false;
@@ -345,12 +257,6 @@ bool __fastcall hkSCompoundWidgetOnPaint(SCompoundWidget* thisptr, __int64 Args,
 	return oSCompoundWidgetOnPaint(thisptr, Args, AllotedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 }
 
-bool __fastcall hkformatTextVariadicArguments_2(std::wstring* output, const wchar_t* formatAlias, ...) {
-	va_list va;
-	va_start(va, formatAlias);
-	return (unsigned __int8)oFormatTextArgumentList_2(output, formatAlias, va);
-}
-
 void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 {
 	if (const auto module = pe::get_module()) {
@@ -390,15 +296,6 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 			memcpy((LPVOID)aHandler, ret, sizeof(ret));
 			VirtualProtect((LPVOID)aHandler, sizeof(ret), oldprotect, &oldprotect);
 		}
-
-		/*
-		auto sFormatText_1 = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("48 81 C4 88 00 00 00 C3 CC CC CC CC CC CC CC CC CC CC CC CC 48 89 54 24 10 48 89 4C 24 08")));
-		if (sFormatText_1 != data.end()) {
-			oFormatTextArgumentList_2 = module->rva_to<std::remove_pointer_t<decltype(oFormatTextArgumentList_2)>>(GetAddress(((uintptr_t)&sFormatText_1[0] + 0x45), 1, 5) - handle);
-			oformatTextVariadicArguments_2 = module->rva_to<std::remove_pointer_t<decltype(oformatTextVariadicArguments_2)>>(((uintptr_t)&sFormatText_1[0] + 0x14) - handle);
-			DetourAttach(&(PVOID&)oformatTextVariadicArguments_2, &hkformatTextVariadicArguments_2);
-		}
-		*/
 
 		auto sSCompoundOnPaint = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("F3 0F 10 4C 24 4C F3 0F 59 8F 34 03 00 00 F3 0F 11 4C 24 4C")));
 		if (sSCompoundOnPaint != data.end()) {
