@@ -32,7 +32,8 @@ ItemBarPanel
 SprintPanel
  ```
 ###### List of known Panel Names / Layer indexes
-Some panels cannot be hidden by their name, the default list above is confirmed 100% working
+Some panels cannot be hidden by their name, the default list above is confirmed 100% working.
+
 I can't stress this enough but don't use layer indexes (integers) this are extremely unreliable due to how I determine them and by that I mean I am collecting a list of layers, sorting by their layerId and going off that. LayerID's change when layers are added or removed so loading into a new level (map) may have additional layers created before-hand
 ```
 PlayerExpBarPanel
