@@ -12,7 +12,7 @@ An alternative to Ctrl + X but hides only select UI elements, unlike UE3 there i
 ###### Alt + B
 Hides or shows name plates above players and NPC's heads, no known issues with this.
 ###### Alt + Insert
-Loads or reloads booster.txt located in `Documents\BnS\customhud.txt`
+Loads or reloads custom.txt located in `Documents\BnS\customhud.txt`
 It's not recommended to use this
 
 ## customhud.txt
