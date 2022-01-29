@@ -12,15 +12,29 @@ An alternative to Ctrl + X but hides only select UI elements, unlike UE3 there i
 ###### Alt + B
 Hides or shows name plates above players and NPC's heads, no known issues with this.
 ###### Alt + Insert
-Loads or reloads booster.txt located in `Documents\BnS\customhud.txt`
+Loads or reloads custom.txt located in `Documents\BnS\customhud.txt`
 It's not recommended to use this
 
 ## customhud.txt
 `customhud.txt is optional and not required or recommended but it is an option`
 
 This is a way for users to customize which UI elements are hidden from the screen.
+
+###### Default list of panel names hidden
+```
+PlayerExpBarPanel
+PlayerStatusPanel
+ChattingPanel
+QuestQuickSlotPanel
+SystemMenuPanel
+NotificationMenuPanel
+ItemBarPanel
+SprintPanel
+ ```
 ###### List of known Panel Names / Layer indexes
-I can't stress this enough but don't use layer indexes (integers) this are extremely unreliable due to how I determine them.
+Some panels cannot be hidden by their name, the default list above is confirmed 100% working.
+
+I can't stress this enough but don't use layer indexes (integers) this are extremely unreliable due to how I determine them and by that I mean I am collecting a list of layers, sorting by their layerId and going off that. LayerID's change when layers are added or removed so loading into a new level (map) may have additional layers created before-hand
 ```
 PlayerExpBarPanel
 SprintPanel
@@ -39,8 +53,53 @@ EnergyUIPanel
 EnergyPanel
 # This method is not recommended as it's based off indexing which is sorted by layerId both of which change dynamically
 # Layers start from 0-82 ( DO NOT USE low indexes, start from 20+)
-# Clan Bonus / Premium Buffs / Sometimes the party list
+# These are just a relative position on the table list, again note that these change each time you load into a new level and may shift up or down by a few
+#HMLVL Name
+15
+#XP Bar
+17
+#System Menu Icons
+18
+#Notification Icons
+19
+#Chat
+22
+#Premium buff icons (top left on default ui)
 24
+#Quest bar
+26
+#Map
+27
+#Context menu Z|X|C|V
+28
+#Context Menu 1|2|3|4
+29
+#LMB Context Icon
+30
+#RMB Context Icon
+31
+#Hotkey icons (5|6|7|8 on default keylist)
+32
+#Talisman icon
+33
+#Buff gauge
+34
+#Tab context icon
+35
+#Backstep context icon
+36
+#E Context icon
+37
+#Auto Combat icon
+39
+#Ultimate Gauge
+40
+#Ping
+41
+#Fps but why? you can turn this off yourself in settings
+42
+#HP / Chi Bar
+49
 ```
 
 # FAQ
