@@ -19,6 +19,9 @@
 
 static bool Hide_UI_Panels = false;
 bool SHOW_NAMEPLATES = true;
+float ScreenH = 0.0f;
+float ScreenW = 0.0f;
+int* ZoneID;
 static std::filesystem::path FilterPath;
 
 const std::filesystem::path& documents_path()
@@ -83,6 +86,9 @@ static void loadFilter() {
 	return;
 }
 
+// I should replace this with a directinput hook to read the key states of the game
+// But I have other projects already hooking it and I don't want to conflict with potential future plugins that will make better use
+
 bool ToggleUiPressed = false;
 bool ToggleNamePlates = false;
 bool ReloadList = false;
@@ -116,6 +122,8 @@ bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 							});
 
 							if (!result) continue;
+							// In celestial basin skip over this one
+							if (wcscmp(name, L"QuestQuickSlotPanel") == 0 && ZoneID && IN_RANGE(6400, 6410, *ZoneID)) continue;
 							//bool isPanelVisible = (unsigned __int8)oUIPanelIsVisible(panel, false) == 1;
 							// Toggle can work but it's weird
 							oUIPanelToggle(panel, true);
@@ -133,10 +141,10 @@ bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 							if (!BNSInstance)
 								BNSInstance = *(BInstance**)BNSClientInstance;
 
-							// Make sure the pointer is valid
-							if (*BNSInstance->PresentationWorld) {
-								oSetEnableIndicator(BNSInstance->PresentationWorld, !Hide_UI_Panels);
-								oSetEnableBalloon(BNSInstance->PresentationWorld, !Hide_UI_Panels);
+							// Make sure the pointer is valid and the functions are assigned
+							if (*BNSInstance->PresentationWorld && oSetEnableBalloon && oSetEnableIndicator) {
+								oSetEnableIndicator(BNSInstance->PresentationWorld, !Hide_UI_Panels); // Pretty sure this is quest icon stuff above npc's heads
+								oSetEnableBalloon(BNSInstance->PresentationWorld, !Hide_UI_Panels); // And this should be the text bubble above their heads
 							}
 						}
 
@@ -158,6 +166,7 @@ bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 
 				break;
 			case 0x42: // B Key
+				if (!oSetEnableNamePlate) break;
 				if (!ToggleNamePlates && InputKeyEvent->KeyState == EngineKeyStateType::EKS_PRESSED) {
 					ToggleNamePlates = true;
 					if (*BNSClientInstance) {
@@ -236,11 +245,18 @@ bool __fastcall hkSCompoundWidgetOnPaint(SCompoundWidget* thisptr, __int64 Args,
 				UiStateInit = false;
 				// Sort our jank list by layerId
 				std::sort(LayersTable.begin(), LayersTable.end(), [](SCompoundWidget* v1, SCompoundWidget* v2) { return v1->LayerID < v2->LayerID; });
+
+				// Fill in some missing info
+				if (ScreenH == 0.0f) {
+					ScreenH = LayersTable[6]->HSize;
+					ScreenW = LayersTable[6]->VSize;
+				}
+
 				// The indexes obviously change depending on what was set as the initial layers but the range is relatively the same
-				// So loop through index 55-63 and make sure the parent is not a master layer
+				// So loop through index 56-63 and make sure the parent is not a master layer
 				// Check the width (max horizontal) to make sure it matches render resolution
-				for (int i = 55; i < 63; i++) {
-					if (reinterpret_cast<SCompoundWidget*>(LayersTable[i])->Parent->LayerID > 19 && LayersTable[i]->HSize == LayersTable[6]->HSize) {
+				for (int i = 56; i < 63; i++) {
+					if (LayersTable[i]->Parent->LayerID > 19 && LayersTable[i]->HSize == ScreenH && LayersTable[i]->VSize == ScreenW) {
 						DepthOfFieldIndex = i;
 						break;
 					}
@@ -282,6 +298,14 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 			uintptr_t aBinput = (uintptr_t)&sBinput[0] - 0x38;
 			oBInputKey = module->rva_to<std::remove_pointer_t<decltype(oBInputKey)>>(aBinput - handle);
 			DetourAttach(&(PVOID&)oBInputKey, &hkBInputKey);
+		}
+
+		//40 53 48 83 EC 30 48 8B DA 0F 29 74 24 20 48 8D 15 + 0x53 
+		// 44 8B 05 B2 66 E1 05
+		auto sZonePtr = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("40 53 48 83 EC 30 48 8B DA 0F 29 74 24 20 48 8D 15")));
+		if (sZonePtr != data.end()) {
+			ZoneID = reinterpret_cast<int*>(GetAddress((uintptr_t)&sZonePtr[0] + 0x53, 3, 7));
+			std::cout << "ZoneID | " << *ZoneID << std::endl;
 		}
 
 		// Stops invokeGameMessage for combat log
@@ -346,14 +370,19 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 		// 48 85 D2 0F B6 D3 48 0F 44 CD E8 (End of BUiWorld::ShowHud)
 		auto sSetNamePlate = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("48 85 D2 0F B6 D3 48 0F 44 CD E8")));
 		if (sSetNamePlate != data.end()) {
-			// Get the full address of the functions from their relative calls
-			uintptr_t aSetNamePlate = GetAddress((uintptr_t)&sSetNamePlate[0] - 0x66, 1, 5);
-			uintptr_t aSetBalloon = GetAddress((uintptr_t)&sSetNamePlate[0] - 0x86, 1, 5);
-			uintptr_t aSetIndicator = GetAddress((uintptr_t)&sSetNamePlate[0] - 0x46, 1, 5);
-			
-			oSetEnableNamePlate = module->rva_to<std::remove_pointer_t<decltype(oSetEnableNamePlate)>>(aSetNamePlate - handle);
-			oSetEnableBalloon = module->rva_to<std::remove_pointer_t<decltype(oSetEnableBalloon)>>(aSetBalloon - handle);
-			oSetEnableIndicator = module->rva_to<std::remove_pointer_t<decltype(oSetEnableIndicator)>>(aSetIndicator - handle);
+			uintptr_t aSetNamePlate = (uintptr_t)&sSetNamePlate[0] - 0x66;
+			uintptr_t aSetBalloon = (uintptr_t)&sSetNamePlate[0] - 0x86;
+			uintptr_t aSetIndicator = (uintptr_t)&sSetNamePlate[0] - 0x46;
+
+			// Make sure it is a CALL before trying to get the full address of the call's relative address
+			if(*reinterpret_cast<BYTE*>(aSetNamePlate) == 0xE8)
+				oSetEnableNamePlate = module->rva_to<std::remove_pointer_t<decltype(oSetEnableNamePlate)>>(GetAddress(aSetNamePlate, 1, 5) - handle);
+
+			if (*reinterpret_cast<BYTE*>(aSetBalloon) == 0xE8)
+				oSetEnableBalloon = module->rva_to<std::remove_pointer_t<decltype(oSetEnableBalloon)>>(GetAddress(aSetBalloon, 1, 5) - handle);
+
+			if (*reinterpret_cast<BYTE*>(aSetIndicator) == 0xE8)
+				oSetEnableIndicator = module->rva_to<std::remove_pointer_t<decltype(oSetEnableIndicator)>>(GetAddress(aSetIndicator, 1, 5) - handle);
 		}
 
 		DetourTransactionCommit();
