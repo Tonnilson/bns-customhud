@@ -49,8 +49,8 @@ ContextPanel
 SystemMenuPanel
 NotificationMenuPanel
 Feedback_CombatSignal_Panel
-EnergyUIPanel
-EnergyPanel
+MapInfoPanel
+PartyBasicFrame_FuncHolder
 # This method is not recommended as it's based off indexing which is sorted by layerId both of which change dynamically
 # Layers start from 0-82 ( DO NOT USE low indexes, start from 20+)
 # These are just a relative position on the table list, again note that these change each time you load into a new level and may shift up or down by a few
