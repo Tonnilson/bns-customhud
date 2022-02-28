@@ -24,6 +24,12 @@ float ScreenW = 0.0f;
 int* ZoneID;
 static std::filesystem::path FilterPath;
 
+// Used to identify where the function is and what it's original bytes were
+// I should just hook it to make this simplier
+uintptr_t CombatLogMessageHandler = NULL;
+BYTE combatlog_original[] = { 0x00, 0x00, 0x00 };
+BYTE combatlog_turnedoff[] = { 0xC3, 0x90, 0x90 };
+
 const std::filesystem::path& documents_path()
 {
 	static std::once_flag once_flag;
@@ -86,12 +92,14 @@ static void loadFilter() {
 	return;
 }
 
-// I should replace this with a directinput hook to read the key states of the game
-// But I have other projects already hooking it and I don't want to conflict with potential future plugins that will make better use
-
+// I am declaring these so that the actions are not fired off multiple times for anyone confused by this
+// tl;dr Checking if variable is false, if so and desired key is pressed -> set to true and do action only when it is
+// initially false, when key state is set to released then set variable back to false
 bool ToggleUiPressed = false;
 bool ToggleNamePlates = false;
 bool ReloadList = false;
+bool toggleFilter = false;
+bool CombatLog = false;
 
 bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 	// Don't bother if the alt key isn't even pressed.
@@ -130,10 +138,6 @@ bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 							// Can also use UiStateGame::ShowPanel to show or hide a panel but need to know the ptr for the uistategame obj and pass it
 							//oUiStateGameShowPanel(UiStateGamePtr, panel, !Hide_UI_Panels, true, true);
 						}
-
-						// Rehides the Depth of field filter if it's not hidden
-						if (LayersTable[DepthOfFieldIndex]->IsVisible != 0)
-							LayersTable[DepthOfFieldIndex]->IsVisible = 0;
 
 						// I am not 100% sure exactly what these are, they're not what I initially thought they were but they are called via Ctrl + X
 						// I have observed no negatives to hiding them.
@@ -178,11 +182,101 @@ bool __fastcall hkBInputKey(BInputKey* thisptr, EInputKeyEvent* InputKeyEvent) {
 							oSetEnableNamePlate(BNSInstance->PresentationWorld, !SHOW_NAMEPLATES);
 							SHOW_NAMEPLATES = !SHOW_NAMEPLATES;
 						}
+
+						// Always check if oAddInstantNotification was defined otherwise you will cause a crash
+						if (*BNSInstance->GameWorld && oAddInstantNotification) {
+							oAddInstantNotification(
+								BNSInstance->GameWorld, // Instance Ptr (Should be Game World Ptr)
+								SHOW_NAMEPLATES ? L"Name Plates Visible" : L"<font name=\"00008130.UI.Label_DarkYellow_out_20\">Name Plates Hidden</font>", // Msg
+								L"", // Particle Ref
+								L"", // Sound
+								0, // Track
+								false, // Stop Previous Sound
+								false, // Headline2
+								false, // Boss Headline
+								false, // Chat
+								0, // Other Category type if none of the above (0 = Scrolling Text headline)
+								L"" // Sound 2
+							);
+						}
 					}
 				}
 				else if (ToggleNamePlates && InputKeyEvent->KeyState == EngineKeyStateType::EKS_RELEASED)
 					ToggleNamePlates = false;
 
+				break;
+			case 0x56: // V Key
+				if (!toggleFilter && InputKeyEvent->KeyState == EngineKeyStateType::EKS_PRESSED) {
+					toggleFilter = true;
+					LayersTable[DepthOfFieldIndex]->IsVisible = LayersTable[DepthOfFieldIndex]->IsVisible == 0 ? 17 : 0;
+
+					if (*BNSClientInstance) {
+						if (!BNSInstance)
+							BNSInstance = *(BInstance**)BNSClientInstance;
+
+						// Always check if oAddInstantNotification was defined otherwise you will cause a crash
+						if (*BNSInstance->GameWorld && oAddInstantNotification) {
+							oAddInstantNotification(
+								BNSInstance->GameWorld, // Instance Ptr (Should be Game World Ptr)
+								LayersTable[DepthOfFieldIndex]->IsVisible == 17 ? L"Depth Filter Visible" : L"<font name=\"00008130.UI.Label_Red02_20_out\">Depth Filter Hidden</font>", // Msg
+								L"", // Particle Ref
+								L"", // Sound
+								0, // Track
+								false, // Stop Previous Sound
+								false, // Headline2
+								false, // Boss Headline
+								false, // Chat
+								0, // Other Category type if none of the above (0 = Scrolling Text headline)
+								L"" // Sound 2
+							);
+						}
+					}
+				}
+				else if (toggleFilter && InputKeyEvent->KeyState == EngineKeyStateType::EKS_RELEASED)
+					toggleFilter = false;
+				break;
+
+			case 0x4C:
+				if (!CombatLog && InputKeyEvent->KeyState == EngineKeyStateType::EKS_PRESSED) {
+					CombatLog = true;
+					DWORD oldprotect;
+					VirtualProtect((LPVOID)CombatLogMessageHandler, sizeof(combatlog_turnedoff), PAGE_EXECUTE_READWRITE, &oldprotect);
+
+					std::wstring message;
+					if (*reinterpret_cast<BYTE*>(CombatLogMessageHandler) == 0xC3) {
+						message = L"<image enablescale=\"true\" imagesetpath=\"00009076.Duel\" scalerate=\"1.2\"/>Combat Log Enabled";
+						memcpy((LPVOID)CombatLogMessageHandler, combatlog_original, sizeof(combatlog_original));
+					}
+					else {
+						message = L"<image enablescale=\"true\" imagesetpath=\"00009076.Duel\" scalerate=\"1.2\"/><font name=\"00008130.UI.Label_Red02_20_out\">Combat Log Disabled</font>";
+						memcpy((LPVOID)CombatLogMessageHandler, combatlog_turnedoff, sizeof(combatlog_turnedoff));
+					}
+
+					VirtualProtect((LPVOID)CombatLogMessageHandler, sizeof(combatlog_turnedoff), oldprotect, &oldprotect);
+					if (*BNSClientInstance) {
+						if (!BNSInstance)
+							BNSInstance = *(BInstance**)BNSClientInstance;
+						
+						// Always check if oAddInstantNotification was defined otherwise you will cause a crash
+						if (*BNSInstance->GameWorld && oAddInstantNotification) {
+							oAddInstantNotification(
+								BNSInstance->GameWorld, // Instance Ptr (Should be Game World Ptr)
+								message.c_str(), // Msg
+								L"", // Particle Ref
+								L"", // Sound
+								0, // Track
+								false, // Stop Previous Sound
+								false, // Headline2
+								false, // Boss Headline
+								false, // Chat
+								0, // Other Category type if none of the above (0 = Scrolling Text headline)
+								L"" // Sound 2
+							);
+						}
+					}
+				}
+				else if (CombatLog && InputKeyEvent->KeyState == EngineKeyStateType::EKS_RELEASED)
+					CombatLog = false;
 				break;
 		}
 	}
@@ -215,7 +309,7 @@ bool _fastcall hkUiStateGame(__int64 thisptr) {
 // Much easier to do this so not reliant on offsets which could change at any time a new panel is added to the game
 bool __fastcall hkUIPanelSetName(UIPanel* uiPanel, const wchar_t* name) {
 	if (uiPanel) {
-		//printf("Panel Created: %S | %p\n", name, uiPanel);
+		//printf("%S\n", name, uiPanel);
 		UI_PANELS.push_back(uiPanel);
 	}
 
@@ -224,6 +318,7 @@ bool __fastcall hkUIPanelSetName(UIPanel* uiPanel, const wchar_t* name) {
 
 // Used this for debugging purposes
 /*
+* DeliveryGoodsOverConfirmPanel <-- filter that out
 bool __fastcall hkUiStateGameShowPanel(__int64 UiStateGame, UIPanel* panel, bool show, bool playEvent, bool processPanelShowEvent) {
 	if (panel != NULL)
 		if(panel->panelName == NULL)
@@ -255,14 +350,15 @@ bool __fastcall hkSCompoundWidgetOnPaint(SCompoundWidget* thisptr, __int64 Args,
 				// The indexes obviously change depending on what was set as the initial layers but the range is relatively the same
 				// So loop through index 56-63 and make sure the parent is not a master layer
 				// Check the width (max horizontal) to make sure it matches render resolution
-				for (int i = 56; i < 63; i++) {
+				// This is 80% accurate but can fail in certain instances with parties or alliances
+				for (int i = 55; i < 63; i++) {
 					if (LayersTable[i]->Parent->LayerID > 19 && LayersTable[i]->HSize == ScreenH && LayersTable[i]->VSize == ScreenW) {
 						DepthOfFieldIndex = i;
 						break;
 					}
 				}
-				TargetedLayer = reinterpret_cast<SCompoundWidget*>(LayersTable[DepthOfFieldIndex]);
-				TargetedLayer->IsVisible = 0;
+				//TargetedLayer = LayersTable[DepthOfFieldIndex];
+				//TargetedLayer->IsVisible = 0;
 			}
 
 			if (std::none_of(LayersTable.begin(), LayersTable.end(), [thisptr](SCompoundWidget* x) { return x == thisptr; }))
@@ -271,6 +367,13 @@ bool __fastcall hkSCompoundWidgetOnPaint(SCompoundWidget* thisptr, __int64 Args,
 	}
 
 	return oSCompoundWidgetOnPaint(thisptr, Args, AllotedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+}
+
+// Ignore this I was messing with something but I am keeping it in source for possible future project
+bool __fastcall hkformatTextVariadicArguments_2(std::wstring* output, const wchar_t* formatAlias, ...) {
+	va_list va;
+	va_start(va, formatAlias);
+	return (unsigned __int8)oFormatTextArgumentList_2(output, formatAlias, va);
 }
 
 void __cdecl oep_notify([[maybe_unused]] const Version client_version)
@@ -300,12 +403,12 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 			DetourAttach(&(PVOID&)oBInputKey, &hkBInputKey);
 		}
 
-		//40 53 48 83 EC 30 48 8B DA 0F 29 74 24 20 48 8D 15 + 0x53 
+		// 40 53 48 83 EC 30 48 8B DA 0F 29 74 24 20 48 8D 15 + 0x53 
 		// 44 8B 05 B2 66 E1 05
+		// Get the static address for current map/zoneID
 		auto sZonePtr = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("40 53 48 83 EC 30 48 8B DA 0F 29 74 24 20 48 8D 15")));
 		if (sZonePtr != data.end()) {
 			ZoneID = reinterpret_cast<int*>(GetAddress((uintptr_t)&sZonePtr[0] + 0x53, 3, 7));
-			std::cout << "ZoneID | " << *ZoneID << std::endl;
 		}
 
 		// Stops invokeGameMessage for combat log
@@ -313,13 +416,22 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 		// Unclear whether or not this provides an FPS bonus like it did with the UE3 client but still including it because who really uses the combat log.
 		auto sMHandler = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("49 89 43 C0 4D 89 4B B8 4D 8B C8 41 B8 08 00 00 00")));
 		if (sMHandler != data.end()) {
-			uintptr_t aHandler = (uintptr_t)&sMHandler[0] - 0x4B;
-			BYTE ret[] = { 0xC3, 0x90, 0x90 };
+			CombatLogMessageHandler = (uintptr_t)&sMHandler[0] - 0x4B;
+			memcpy((LPVOID)combatlog_original, (LPVOID)CombatLogMessageHandler, sizeof(combatlog_original)); // Get the original bytes first before overwriting
 			DWORD oldprotect;
-			VirtualProtect((LPVOID)aHandler, sizeof(ret), PAGE_EXECUTE_READWRITE, &oldprotect);
-			memcpy((LPVOID)aHandler, ret, sizeof(ret));
-			VirtualProtect((LPVOID)aHandler, sizeof(ret), oldprotect, &oldprotect);
+			VirtualProtect((LPVOID)CombatLogMessageHandler, sizeof(combatlog_turnedoff), PAGE_EXECUTE_READWRITE, &oldprotect);
+			memcpy((LPVOID)CombatLogMessageHandler, combatlog_turnedoff, sizeof(combatlog_turnedoff));
+			VirtualProtect((LPVOID)CombatLogMessageHandler, sizeof(combatlog_turnedoff), oldprotect, &oldprotect);
 		}
+
+		/*
+		auto sFormatText_1 = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("48 81 C4 88 00 00 00 C3 CC CC CC CC CC CC CC CC CC CC CC CC 48 89 54 24 10 48 89 4C 24 08")));
+		if (sFormatText_1 != data.end()) {
+			oFormatTextArgumentList_2 = module->rva_to<std::remove_pointer_t<decltype(oFormatTextArgumentList_2)>>(GetAddress(((uintptr_t)&sFormatText_1[0] + 0x45), 1, 5) - handle);
+			oformatTextVariadicArguments_2 = module->rva_to<std::remove_pointer_t<decltype(oformatTextVariadicArguments_2)>>(((uintptr_t)&sFormatText_1[0] + 0x14) - handle);
+			DetourAttach(&(PVOID&)oformatTextVariadicArguments_2, &hkformatTextVariadicArguments_2);
+		}
+		*/
 
 		auto sSCompoundOnPaint = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("F3 0F 10 4C 24 4C F3 0F 59 8F 34 03 00 00 F3 0F 11 4C 24 4C")));
 		if (sSCompoundOnPaint != data.end()) {
@@ -359,6 +471,12 @@ void __cdecl oep_notify([[maybe_unused]] const Version client_version)
 			//std::cout << "Found UiStateGame::showPanel" << std::endl;
 			oUiStateGameShowPanel = module->rva_to<std::remove_pointer_t<decltype(oUiStateGameShowPanel)>>((uintptr_t)&sShowPanel[0] - handle);
 			//DetourAttach(&(PVOID&)oUiStateGameShowPanel, &hkUiStateGameShowPanel);
+		}
+
+		// Used for sending notifications about certain actions
+		auto sAddNotif = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("45 33 DB 41 8D 42 F4 3C 02 BB 05 00 00 00 41 0F 47 DB")));
+		if (sAddNotif != data.end()) {
+			oAddInstantNotification = module->rva_to<std::remove_pointer_t<decltype(oAddInstantNotification)>>((uintptr_t)&sAddNotif[0] - 0x68 - handle);
 		}
 
 		auto sBShowHud = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("45 32 D2 32 DB 48 89 6C 24 38 44 8B CE 85")));
