@@ -31,75 +31,115 @@ NotificationMenuPanel
 ItemBarPanel
 SprintPanel
  ```
+ 
 ###### List of known Panel Names / Layer indexes
-Some panels cannot be hidden by their name, the default list above is confirmed 100% working.
-
-I can't stress this enough but don't use layer indexes (integers) this are extremely unreliable due to how I determine them and by that I mean I am collecting a list of layers, sorting by their layerId and going off that. LayerID's change when layers are added or removed so loading into a new level (map) may have additional layers created before-hand
+List of panels to hide, some may not hide like Talisman icon but overall the majority should work. Depending on what you use when unhiding unwanted stuff may re-appear.
 ```
-PlayerExpBarPanel
-SprintPanel
+Context_Icon_1
+Context_Icon_2
+Context_Icon_3
+Context_Icon_4
+Context_Icon_5
+Context_Classic_Icon_1
+Context_Classic_Icon_2
+Context_Classic_Icon_3
+Context_Classic_Icon_4
+Context_Classic_Icon_5
+PlayerSummonedPanel
+SkillBar_Line_1
+SkillBar_Line_2
+Cmd_Down_Icon
+Cmd_Left_Icon
+Cmd_Right_Icon
+SkillBarStanceHolder
+SkillRecommendHolder
+PlayerCastingGauseHolder
+PlayerBuffEffectHolder
+PlayerDebuffEffectHolder
+PlayerBuffDisableHolder
+BuffGraphHolder
 PlayerStatusPanel
-PlayerCombatStatusPanel
-PlayerStancePanel
-ChattingPanel
-QuestQuickSlotPanel
+PlayerStatusHolder
+PlayerUltimateGaugeHolder
+Player_GuardGaugePanel
+PlayerStatus_PvPHolder
+PlayerSummonedBuffEffectHolder
+PlayerSummonedDebuffEffectHolder
 ItemBarPanel
-SkillBarPanel
-ContextPanel
+PlayerExpBarPanel
 SystemMenuPanel
 NotificationMenuPanel
+PartyBasicFrame
+InstantNotificationPanel
+ChattingPanel
+ChatInputPanel
+FramePerSecond
+Minimap_Holder
+QuestQuickSlotPanel
+Tooltip_LinkDummy
+BnsModeContextHolder
+ImeLanguageStatePanel
+BossCombatStatusPanel
+ImmuneBreakPanel
+FactionPopulationPanel
+AchievementCompleteNotificationPanel2
+AchievementCompleteNotificationPanel
+MegaphonePanel
+ShowPanel
+DuelPlayerSummonedPanel
+DuelPlayerSummonedBuffEffectHolder
+DuelPlayerSummonedDebuffEffectHolder
+SkillScorePanel
+ClockPanel
+RaidMemberPanel
+RaidSquadPanel
+GuildBattleFieldHistoryPanel
+SkillResistHolder
+SkillResistDescriptionHolder
+PlayerSkillRecycleHolder
+TeamPanel
+Target2_StatusPanel
+Target2_BuffEffectHolder
+Target2_DebuffEffectHolder
+Boss2_1_StatusPanel
+Boss2_1_BuffEffectHolder
+Boss2_1_DebuffEffectHolder
+Boss2_2_StatusPanel
+Boss2_2_BuffEffectHolder
+Boss2_2_DebuffEffectHolder
+BossListPanel
+DuelTagMatchSkillBar
+PlayerSystemEffectHolder
+PlayerLongTermHolder
+HeadlineFxPanel
+LatencyInfoPanel
+TendencyFieldPanel
+SpectateCameraPanel
+BladeMaster_BuffIndicatorHolder
+KungfuFighter_TargetIndicatorHolder
+ForceMaster_Indicator2Holder
+Shooter_IndicatorHolder
+Destroyer_IndicatorHolder
+Summon_IndicatorHolder
+Assassin_TargetIndicatorHolder
+SwordMaster_BuffIndicatorHolder
+Warlock_BuffIndicatorHolder
+SoulFighter_BuffIndicatorHolder
+Warrior_BuffIndicatorHolder
+Archer_IndicatorHolder
+Thunderer_BuffIndicatorHolder
+DuelBotCardSkillBar
+SkillBar_Line_Extra
+novaSkillBar
+HeadlineFishingFxPanel
+Kungfufighter_ComboTitle
 Feedback_CombatSignal_Panel
-MapInfoPanel
-PartyBasicFrame_FuncHolder
-# This method is not recommended as it's based off indexing which is sorted by layerId both of which change dynamically
-# Layers start from 0-82 ( DO NOT USE low indexes, start from 20+)
-# These are just a relative position on the table list, again note that these change each time you load into a new level and may shift up or down by a few
-#HMLVL Name
-15
-#XP Bar
-17
-#System Menu Icons
-18
-#Notification Icons
-19
-#Chat
-22
-#Premium buff icons (top left on default ui)
-24
-#Quest bar
-26
-#Map
-27
-#Context menu Z|X|C|V
-28
-#Context Menu 1|2|3|4
-29
-#LMB Context Icon
-30
-#RMB Context Icon
-31
-#Hotkey icons (5|6|7|8 on default keylist)
-32
-#Talisman icon
-33
-#Buff gauge
-34
-#Tab context icon
-35
-#Backstep context icon
-36
-#E Context icon
-37
-#Auto Combat icon
-39
-#Ultimate Gauge
-40
-#Ping
-41
-#Fps but why? you can turn this off yourself in settings
-42
-#HP / Chi Bar
-49
+GimmickOptionPanel
+EnergyPanel
+PlayerStatus_PssNotificationHolder
+PlayerStatus_PssHolder
+ForceMasterG3_JobStyleGaugePanel
+SwordMasterG3_JobStyleGaugPanel
 ```
 
 # FAQ
