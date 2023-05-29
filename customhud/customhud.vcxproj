@@ -190,6 +190,8 @@
     <ClInclude Include="..\deps\Detours\src\detours.h" />
     <ClInclude Include="functions.h" />
     <ClInclude Include="UIElement.h" />
+    <ClInclude Include="UIEngineInterface.h" />
+    <ClInclude Include="World.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\deps\Detours\src\detours.cpp" />
